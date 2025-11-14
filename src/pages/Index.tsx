@@ -9,6 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Act {
   id: string;
@@ -89,8 +92,54 @@ export default function Index() {
   };
 
   const exportToExcel = () => {
-    const headers = ['№ акта', 'Наименование', 'Проект', 'Дата', 'Статус', 'Фото', 'Сертификаты'];
-    const rows = acts.map(act => [
+    const wsData = [
+      ['№ акта', 'Наименование', 'Проект', 'Дата', 'Статус', 'Фото', 'Сертификаты'],
+      ...acts.map(act => [
+        act.number,
+        act.title,
+        act.project,
+        new Date(act.date).toLocaleDateString('ru-RU'),
+        act.status === 'approved' ? 'Утвержден' : act.status === 'pending' ? 'На рассмотрении' : 'Отклонен',
+        act.photos,
+        act.certificates
+      ])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Реестр актов');
+    
+    ws['!cols'] = [
+      { wch: 12 },
+      { wch: 50 },
+      { wch: 25 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 8 },
+      { wch: 15 }
+    ];
+
+    XLSX.writeFile(wb, `Реестр_актов_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    doc.addFont('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf', 'Roboto', 'normal');
+    
+    const title = 'РЕЕСТР АКТОВ НА СКРЫТЫЕ РАБОТЫ';
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFontSize(16);
+    doc.text(title, pageWidth / 2, 15, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`Дата формирования: ${new Date().toLocaleDateString('ru-RU')}`, pageWidth / 2, 22, { align: 'center' });
+
+    const tableData = acts.map(act => [
       act.number,
       act.title,
       act.project,
@@ -100,16 +149,41 @@ export default function Index() {
       act.certificates.toString()
     ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    autoTable(doc, {
+      head: [['№ акта', 'Наименование', 'Проект', 'Дата', 'Статус', 'Фото', 'Сертификаты']],
+      body: tableData,
+      startY: 28,
+      styles: {
+        font: 'helvetica',
+        fontSize: 9,
+        cellPadding: 3
+      },
+      headStyles: {
+        fillColor: [14, 165, 233],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 80 },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 35 },
+        5: { cellWidth: 15 },
+        6: { cellWidth: 25 }
+      },
+      didDrawPage: (data) => {
+        doc.setFontSize(8);
+        doc.text(
+          `Страница ${data.pageNumber}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: 'center' }
+        );
+      }
+    });
 
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Реестр_актов_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.csv`;
-    link.click();
+    doc.save(`Реестр_актов_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.pdf`);
   };
 
   const getStatusBadge = (status: Act['status']) => {
@@ -198,7 +272,11 @@ export default function Index() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={exportToExcel}>
                   <Icon name="FileSpreadsheet" size={16} className="mr-2" />
-                  Экспорт в Excel
+                  Excel
+                </Button>
+                <Button variant="outline" onClick={exportToPDF}>
+                  <Icon name="FileText" size={16} className="mr-2" />
+                  PDF
                 </Button>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
