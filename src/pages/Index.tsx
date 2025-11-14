@@ -19,6 +19,8 @@ interface Act {
   status: 'pending' | 'approved' | 'rejected';
   photos: number;
   certificates: number;
+  photoUrls?: string[];
+  description?: string;
 }
 
 export default function Index() {
@@ -31,7 +33,14 @@ export default function Index() {
       date: '2024-11-10',
       status: 'approved',
       photos: 8,
-      certificates: 3
+      certificates: 3,
+      photoUrls: [
+        'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=800',
+        'https://images.unsplash.com/photo-1590725140246-20acdee442be?w=800',
+        'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?w=800',
+        'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=800',
+      ],
+      description: 'Выполнено устройство монолитного железобетонного фундамента согласно проектной документации'
     },
     {
       id: '2',
@@ -41,7 +50,13 @@ export default function Index() {
       date: '2024-11-12',
       status: 'pending',
       photos: 12,
-      certificates: 2
+      certificates: 2,
+      photoUrls: [
+        'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800',
+        'https://images.unsplash.com/photo-1622372738946-62e02505feb3?w=800',
+        'https://images.unsplash.com/photo-1577495508326-19a1b3cf65b7?w=800',
+      ],
+      description: 'Армирование плиты перекрытия выполнено арматурой класса А500С'
     },
     {
       id: '3',
@@ -51,12 +66,20 @@ export default function Index() {
       date: '2024-11-13',
       status: 'approved',
       photos: 6,
-      certificates: 4
+      certificates: 4,
+      photoUrls: [
+        'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=800',
+        'https://images.unsplash.com/photo-1599619351208-3e6906a4b53d?w=800',
+      ],
+      description: 'Гидроизоляция выполнена битумно-полимерными материалами'
     },
   ]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [selectedAct, setSelectedAct] = useState<Act | null>(null);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   const stats = {
     total: acts.length,
@@ -260,7 +283,15 @@ export default function Index() {
           <CardContent>
             <div className="space-y-3">
               {acts.map((act) => (
-                <Card key={act.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <Card 
+                  key={act.id} 
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setSelectedAct(act);
+                    setIsGalleryOpen(true);
+                    setCurrentPhotoIndex(0);
+                  }}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -297,6 +328,113 @@ export default function Index() {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={isGalleryOpen} onOpenChange={setIsGalleryOpen}>
+          <DialogContent className="max-w-5xl">
+            {selectedAct && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{selectedAct.number} - {selectedAct.title}</DialogTitle>
+                  <DialogDescription>
+                    {selectedAct.project} • {new Date(selectedAct.date).toLocaleDateString('ru-RU')}
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4">
+                  {selectedAct.description && (
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <p className="text-sm">{selectedAct.description}</p>
+                    </div>
+                  )}
+
+                  {selectedAct.photoUrls && selectedAct.photoUrls.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                        <img
+                          src={selectedAct.photoUrls[currentPhotoIndex]}
+                          alt={`Фото ${currentPhotoIndex + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        
+                        {selectedAct.photoUrls.length > 1 && (
+                          <>
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              className="absolute left-4 top-1/2 -translate-y-1/2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentPhotoIndex((prev) => 
+                                  prev === 0 ? selectedAct.photoUrls!.length - 1 : prev - 1
+                                );
+                              }}
+                            >
+                              <Icon name="ChevronLeft" size={20} />
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              className="absolute right-4 top-1/2 -translate-y-1/2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentPhotoIndex((prev) => 
+                                  prev === selectedAct.photoUrls!.length - 1 ? 0 : prev + 1
+                                );
+                              }}
+                            >
+                              <Icon name="ChevronRight" size={20} />
+                            </Button>
+                            
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                              {currentPhotoIndex + 1} / {selectedAct.photoUrls.length}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-6 gap-2">
+                        {selectedAct.photoUrls.map((url, index) => (
+                          <div
+                            key={index}
+                            className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                              index === currentPhotoIndex 
+                                ? 'border-primary scale-95' 
+                                : 'border-transparent hover:border-primary/50'
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentPhotoIndex(index);
+                            }}
+                          >
+                            <img
+                              src={url}
+                              alt={`Превью ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Icon name="Image" size={16} />
+                        {selectedAct.photos} фото
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Icon name="Award" size={16} />
+                        {selectedAct.certificates} сертификатов
+                      </span>
+                    </div>
+                    {getStatusBadge(selectedAct.status)}
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
