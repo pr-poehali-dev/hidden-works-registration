@@ -88,6 +88,30 @@ export default function Index() {
     rejected: acts.filter(a => a.status === 'rejected').length,
   };
 
+  const exportToExcel = () => {
+    const headers = ['№ акта', 'Наименование', 'Проект', 'Дата', 'Статус', 'Фото', 'Сертификаты'];
+    const rows = acts.map(act => [
+      act.number,
+      act.title,
+      act.project,
+      new Date(act.date).toLocaleDateString('ru-RU'),
+      act.status === 'approved' ? 'Утвержден' : act.status === 'pending' ? 'На рассмотрении' : 'Отклонен',
+      act.photos.toString(),
+      act.certificates.toString()
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Реестр_актов_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.csv`;
+    link.click();
+  };
+
   const getStatusBadge = (status: Act['status']) => {
     const variants = {
       pending: { variant: 'secondary' as const, label: 'На рассмотрении', icon: 'Clock' },
@@ -171,13 +195,18 @@ export default function Index() {
                 <CardTitle>Последние акты</CardTitle>
                 <CardDescription>Актуальный список актов на скрытые работы</CardDescription>
               </div>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Icon name="Plus" size={16} className="mr-2" />
-                    Создать акт
-                  </Button>
-                </DialogTrigger>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={exportToExcel}>
+                  <Icon name="FileSpreadsheet" size={16} className="mr-2" />
+                  Экспорт в Excel
+                </Button>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Icon name="Plus" size={16} className="mr-2" />
+                      Создать акт
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Новый акт на скрытые работы</DialogTitle>
@@ -278,6 +307,7 @@ export default function Index() {
                   </div>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
